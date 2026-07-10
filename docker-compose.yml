@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: ark-server
     restart: unless-stopped
+    stop_grace_period: 3m
     ports:
       - "7777:7777/udp"   # Game port
       - "27020:27020/tcp" # RCON port
@@ -46,6 +47,9 @@ services:
 
       # Logging
       - LOG_LEVEL=INFO
+
+      # Graceful shutdown settings
+      - SAVE_WAIT_SECONDS=30
 
 volumes:
   ark-steamcmd:

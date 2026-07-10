@@ -31,6 +31,7 @@ RUN dpkg --add-architecture i386 && \
         procps \
         locales \
         netcat-openbsd \
+        git \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate locale
@@ -50,6 +51,19 @@ RUN mkdir -pm755 /etc/apt/keyrings && \
     apt-get install -y --no-install-recommends winehq-stable && \
     # Remove packages only needed for adding Wine repository
     apt-get purge -y gnupg2 software-properties-common && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install rcon-cli for graceful shutdown
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends golang-go && \
+    git clone https://github.com/itzg/rcon-cli.git /tmp/rcon-cli && \
+    cd /tmp/rcon-cli && \
+    git checkout v1.7.0 && \
+    go build -o /usr/local/bin/rcon-cli -ldflags="-s -w" . && \
+    cd / && \
+    rm -rf /tmp/rcon-cli && \
+    apt-get purge -y golang-go && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
@@ -99,7 +113,8 @@ ENV SERVER_NAME="ARK Server" \
     CLUSTER_ID="" \
     CLUSTER_DIR_OVERRIDE="" \
     HEALTHCHECK_ENABLED="true" \
-    LOG_LEVEL="INFO"
+    LOG_LEVEL="INFO" \
+    SAVE_WAIT_SECONDS=30
 
 # Expose ports
 # 7777/udp - Game port
