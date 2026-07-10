@@ -124,7 +124,7 @@ shutdown_handler() {
         # Try to send SaveWorld command via RCON
         if [ "$RCON_ENABLED" = "True" ] && [ "$rcon_ready" = true ] && command -v rcon-cli &> /dev/null; then
             log_info "RCON is available, sending SaveWorld command..."
-            if rcon-cli -H localhost -p "${RCON_PORT}" -P "${ADMIN_PASSWORD}" "SaveWorld" 2>/dev/null; then
+            if rcon-cli --host localhost --port "${RCON_PORT}" --password "${ADMIN_PASSWORD}" SaveWorld 2>/dev/null; then
                 log_info "SaveWorld command sent successfully"
                 
                 # Wait for save to complete (ASA can take time to save large worlds)
