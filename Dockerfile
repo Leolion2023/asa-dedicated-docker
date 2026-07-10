@@ -31,7 +31,6 @@ RUN dpkg --add-architecture i386 && \
         procps \
         locales \
         netcat-openbsd \
-        git \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate locale
@@ -54,16 +53,12 @@ RUN mkdir -pm755 /etc/apt/keyrings && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Install rcon-cli for graceful shutdown
+# Install rcon-cli for graceful shutdown (pre-built binary)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends golang-go && \
-    git clone https://github.com/itzg/rcon-cli.git /tmp/rcon-cli && \
-    cd /tmp/rcon-cli && \
-    git checkout v1.7.0 && \
-    go build -o /usr/local/bin/rcon-cli -ldflags="-s -w" . && \
-    cd / && \
-    rm -rf /tmp/rcon-cli && \
-    apt-get purge -y golang-go && \
+    apt-get install -y --no-install-recommends curl tar && \
+    curl -sSL https://github.com/itzg/rcon-cli/releases/download/v1.7.6/rcon-cli_linux_amd64.tar.gz | tar xz -C /usr/local/bin rcon-cli && \
+    chmod +x /usr/local/bin/rcon-cli && \
+    apt-get purge -y curl tar && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
