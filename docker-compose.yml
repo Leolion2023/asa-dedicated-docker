@@ -49,7 +49,7 @@ services:
       - LOG_LEVEL=INFO
 
       # Graceful shutdown settings
-      - SAVE_WAIT_SECONDS=30
+      - SAVE_WAIT_SECONDS=10
 
 volumes:
   ark-steamcmd:
