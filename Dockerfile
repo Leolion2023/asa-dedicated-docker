@@ -53,14 +53,15 @@ RUN mkdir -pm755 /etc/apt/keyrings && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Install rcon-cli for graceful shutdown (pre-built binary)
+# Install rcon-cli for graceful shutdown (pre-built binary, latest version)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl tar && \
-    curl -sSL https://github.com/itzg/rcon-cli/releases/download/v1.7.6/rcon-cli_linux_amd64.tar.gz | tar xz -C /usr/local/bin rcon-cli && \
+    apt-get install -y --no-install-recommends curl tar grep && \
+    curl -sSL -o /tmp/rcon-cli.tar.gz $$(curl -s https://api.github.com/repos/itzg/rcon-cli/releases/latest | grep -o 'https://[^"]*linux_amd64[^"]*' | head -1) && \
+    tar xz -C /usr/local/bin -f /tmp/rcon-cli.tar.gz && \
     chmod +x /usr/local/bin/rcon-cli && \
-    apt-get purge -y curl tar && \
+    apt-get purge -y curl tar grep && \
     apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* /tmp/rcon-cli.tar.gz
 
 # Create steam user and directories
 RUN useradd -m -s /bin/bash -u 1000 steam && \
