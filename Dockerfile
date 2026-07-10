@@ -53,6 +53,15 @@ RUN mkdir -pm755 /etc/apt/keyrings && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
+# Install rcon-cli for graceful shutdown (pre-built binary)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl tar && \
+    curl -sSL https://github.com/itzg/rcon-cli/releases/download/v1.7.6/rcon-cli_linux_amd64.tar.gz | tar xz -C /usr/local/bin rcon-cli && \
+    chmod +x /usr/local/bin/rcon-cli && \
+    apt-get purge -y curl tar && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create steam user and directories
 RUN useradd -m -s /bin/bash -u 1000 steam && \
     mkdir -p /home/steam/steamcmd \
@@ -99,7 +108,8 @@ ENV SERVER_NAME="ARK Server" \
     CLUSTER_ID="" \
     CLUSTER_DIR_OVERRIDE="" \
     HEALTHCHECK_ENABLED="true" \
-    LOG_LEVEL="INFO"
+    LOG_LEVEL="INFO" \
+    SAVE_WAIT_SECONDS=30
 
 # Expose ports
 # 7777/udp - Game port

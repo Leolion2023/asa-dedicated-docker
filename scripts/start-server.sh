@@ -102,31 +102,77 @@ shutdown_handler() {
     log_info "Received shutdown signal, stopping server..."
     set_status "$STATUS_STOPPING" "Graceful shutdown initiated"
 
-    # Try to send RCON save command if possible
-    if [ "$RCON_ENABLED" = "True" ] && command -v rcon-cli &> /dev/null; then
-        log_info "Sending save command via RCON"
-        rcon-cli -H localhost -p "${RCON_PORT}" -P "${ADMIN_PASSWORD}" "SaveWorld" 2>/dev/null || true
-        sleep 5
-    fi
-
-    # Kill the Wine process
     WINE_PID=$(get_pid)
+
+    # Try to save the world via RCON before stopping
+    # This ensures player data and world state are persisted
     if [ -n "$WINE_PID" ] && is_process_running "$WINE_PID"; then
+        # Wait for RCON to be available (server might still be starting)
+        local rcon_wait_timeout=10
+        local rcon_elapsed=0
+        local rcon_ready=false
+
+        while [ $rcon_elapsed -lt $rcon_wait_timeout ]; do
+            if nc -z localhost "${RCON_PORT}" 2>/dev/null; then
+                rcon_ready=true
+                break
+            fi
+            sleep 1
+            rcon_elapsed=$((rcon_elapsed + 1))
+        done
+
+        # Try to send SaveWorld command via RCON
+        if [ "$RCON_ENABLED" = "True" ] && [ "$rcon_ready" = true ] && command -v rcon-cli &> /dev/null; then
+            log_info "RCON is available, sending SaveWorld command..."
+            if rcon-cli --host localhost --port "${RCON_PORT}" --password "${ADMIN_PASSWORD}" SaveWorld 2>/dev/null; then
+                log_info "SaveWorld command sent successfully"
+                
+                # Wait for save to complete (ASA can take time to save large worlds)
+                # Default save wait time: 30 seconds for small maps, up to 120 for large ones
+                local save_wait_timeout=${SAVE_WAIT_SECONDS:-30}
+                log_info "Waiting ${save_wait_timeout}s for world save to complete..."
+                sleep "$save_wait_timeout"
+            else
+                log_warn "Failed to send SaveWorld via RCON, continuing with shutdown"
+            fi
+        else
+            if [ "$rcon_ready" = false ]; then
+                log_warn "RCON port not available, cannot send SaveWorld command"
+            else
+                log_warn "RCON client not available, cannot send SaveWorld command"
+            fi
+        fi
+
+        # Now stop the server process
         log_info "Sending SIGTERM to server process (PID: ${WINE_PID})"
         kill -TERM "$WINE_PID" 2>/dev/null || true
 
-        # Wait for graceful shutdown
-        local timeout=30
+        # Wait for graceful shutdown with extended timeout
+        # ASA needs time to properly save and cleanup
+        local shutdown_timeout=180
         local elapsed=0
-        while [ $elapsed -lt $timeout ] && is_process_running "$WINE_PID"; do
+        while [ $elapsed -lt $shutdown_timeout ] && is_process_running "$WINE_PID"; do
             sleep 1
             elapsed=$((elapsed + 1))
+            # Log progress every 30 seconds
+            if [ $((elapsed % 30)) -eq 0 ]; then
+                log_info "Waiting for server to stop... (${elapsed}/${shutdown_timeout}s)"
+            fi
         done
 
         if is_process_running "$WINE_PID"; then
-            log_warn "Server did not stop gracefully, forcing termination"
+            log_warn "Server did not stop gracefully after ${shutdown_timeout}s, forcing termination"
             kill -KILL "$WINE_PID" 2>/dev/null || true
+            # Give it a few more seconds to die
+            sleep 5
+            if is_process_running "$WINE_PID"; then
+                log_error "Server process still running after SIGKILL!"
+            fi
+        else
+            log_info "Server stopped gracefully"
         fi
+    else
+        log_info "Server process not running, skipping shutdown sequence"
     fi
 
     clear_pid
